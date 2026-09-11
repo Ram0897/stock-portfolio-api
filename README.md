@@ -2,24 +2,9 @@
 
 [![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-brightgreen.svg)](https://spring.io/projects/spring-boot)
-[![Build](https://github.com/Ram0897/stock-portfolio-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Ram0897/stock-portfolio-api/actions/workflows/ci.yml)
+[![CI](https://github.com/Ram0897/stock-portfolio-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Ram0897/stock-portfolio-api/actions/workflows/ci.yml)
 
-A production-style REST API for managing stock portfolio holdings, built with **Java 17, Spring Boot, Spring Data JPA and PostgreSQL**.
-
-The project focuses on backend engineering fundamentals: layered architecture, DTO boundaries, validation, precise monetary calculations, centralized exception handling, database migrations, containerization and automated testing.
-
-## Features
-
-- Create stock holdings with request validation
-- Retrieve portfolio holdings through response DTOs
-- Update market prices with proper `PUT` semantics
-- Calculate invested value, current value and profit/loss
-- Use `BigDecimal` for monetary calculations
-- Centralized API error handling
-- PostgreSQL persistence with Flyway migrations
-- Docker Compose setup for API + PostgreSQL
-- Unit tests for core portfolio behavior
-- GitHub Actions CI
+A production-oriented REST API for managing stock portfolio holdings. Built to demonstrate backend engineering practices beyond basic CRUD: layered architecture, validation, consistent errors, PostgreSQL, Flyway, pagination, database-side aggregation, OpenAPI documentation, Docker and automated tests.
 
 ## Architecture
 
@@ -27,10 +12,7 @@ The project focuses on backend engineering fundamentals: layered architecture, D
 Client
   |
   v
-REST Controller
-  |
-  v
-Request/Response DTOs
+REST Controller + Validation + OpenAPI
   |
   v
 Service Layer
@@ -39,28 +21,30 @@ Service Layer
 Spring Data JPA Repository
   |
   v
-PostgreSQL
+PostgreSQL <--- Flyway migrations
 ```
 
 ## Tech Stack
 
-- **Java 17**
-- **Spring Boot 4**
-- **Spring Web MVC**
-- **Spring Data JPA / Hibernate**
-- **PostgreSQL**
-- **Flyway**
-- **Bean Validation**
-- **Maven**
-- **JUnit 5 / Mockito / AssertJ**
-- **Docker / Docker Compose**
-- **GitHub Actions**
+- Java 17
+- Spring Boot 4
+- Spring Web MVC
+- Spring Data JPA / Hibernate
+- PostgreSQL
+- Flyway
+- Bean Validation
+- OpenAPI / Swagger UI
+- JUnit + Mockito
+- Testcontainers
+- Maven
+- Docker / Docker Compose
+- GitHub Actions
 
 ## API
 
 Base URL: `http://localhost:8080/api/stocks`
 
-### Create a stock
+### Create holding
 
 `POST /api/stocks`
 
@@ -73,15 +57,21 @@ Base URL: `http://localhost:8080/api/stocks`
 }
 ```
 
-### Get all holdings
+### List holdings
 
-`GET /api/stocks`
+`GET /api/stocks?page=0&size=20`
 
-### Get current portfolio value
+Optional search:
+
+`GET /api/stocks?q=TCS&page=0&size=20`
+
+The API limits page size to 100 and sorts holdings by stock name.
+
+### Portfolio value
 
 `GET /api/stocks/value`
 
-### Get portfolio summary
+### Portfolio summary
 
 `GET /api/stocks/summary`
 
@@ -103,27 +93,48 @@ Base URL: `http://localhost:8080/api/stocks`
 }
 ```
 
-Invalid requests return a consistent JSON error payload instead of exposing internal exceptions.
+## API Documentation
+
+When running locally, Swagger UI is available at:
+
+`http://localhost:8080/swagger-ui.html`
+
+OpenAPI JSON:
+
+`http://localhost:8080/v3/api-docs`
 
 ## Run with Docker
-
-Prerequisite: Docker Desktop or Docker Engine with Compose.
 
 ```bash
 docker compose up --build
 ```
 
-The API starts on `http://localhost:8080` and PostgreSQL is available on port `5432`.
+The API will be available on port `8080` and PostgreSQL on port `5432`.
 
-Stop the stack with:
+## Run locally
+
+Prerequisites:
+
+- JDK 17+
+- Docker Desktop (recommended for integration tests)
+
+Run the application:
 
 ```bash
-docker compose down
+./mvnw spring-boot:run
 ```
 
-## Run locally without Docker
+Run the full test suite:
 
-Set these environment variables for your local PostgreSQL instance:
+```bash
+./mvnw test
+```
+
+The integration test uses Testcontainers to start an isolated PostgreSQL instance, so Docker must be available when running it.
+
+## Configuration
+
+Database configuration is environment-variable driven:
 
 ```text
 DB_URL=jdbc:postgresql://localhost:5432/portfolio
@@ -131,61 +142,42 @@ DB_USERNAME=portfolio
 DB_PASSWORD=portfolio
 ```
 
-Then run:
+Database schema changes are managed by Flyway under `src/main/resources/db/migration`.
 
-```bash
-./mvnw spring-boot:run
-```
+## Engineering Highlights
 
-On Windows:
-
-```powershell
-mvnw.cmd spring-boot:run
-```
-
-## Tests
-
-Run the test suite with:
-
-```bash
-./mvnw test
-```
-
-GitHub Actions runs the test suite automatically for pull requests and pushes to `main`.
+- **Money-safe calculations:** `BigDecimal` instead of floating-point `Double` for monetary values.
+- **Separation of concerns:** controllers handle HTTP, services handle business logic, repositories handle persistence.
+- **API contracts:** JPA entities are not exposed directly; request/response DTOs define the API surface.
+- **Validation:** invalid prices, quantities and blank stock names are rejected at the API boundary.
+- **Consistent errors:** global exception handling returns structured API errors.
+- **Scalability basics:** holdings support pagination/search and portfolio totals use database aggregation instead of loading every row into application memory.
+- **Database reliability:** PostgreSQL plus versioned Flyway migrations.
+- **Test strategy:** unit tests for business logic plus a PostgreSQL integration test using Testcontainers.
+- **Delivery:** Docker packaging and GitHub Actions CI.
 
 ## Project Structure
 
 ```text
-src/main/java/com/ram/portfolio/
-├── controller/
-├── dto/
-├── entity/
-├── exception/
-├── repository/
-├── service/
+src/main/java/com/ram/portfolio
+├── controller
+├── dto
+├── entity
+├── exception
+├── repository
+├── service
 └── StockPortfolioApplication.java
-
-src/main/resources/
-├── db/migration/
-└── application.properties
 ```
 
-## Engineering Roadmap
+## Roadmap
 
-Next improvements planned for the portfolio:
-
-- Integration tests with Testcontainers
-- OpenAPI / Swagger documentation
-- Pagination and filtering
 - Authentication and authorization
-- Database query optimization for portfolio aggregates
+- Optimistic locking for concurrent price updates
+- Transactional portfolio/order workflows
+- Redis caching where profiling justifies it
 - Structured logging and observability
-- Production deployment and infrastructure automation
-
-## Why this project?
-
-This repository is being evolved from a basic CRUD exercise into a portfolio-quality backend that demonstrates practical engineering decisions and trade-offs rather than only framework usage.
+- Contract/integration testing for external market-data providers
 
 ## License
 
-This project is available for learning and portfolio purposes.
+For learning and portfolio purposes.
