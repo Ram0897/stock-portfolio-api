@@ -2,16 +2,18 @@ package com.ram.portfolio.service;
 
 import com.ram.portfolio.dto.CreateStockRequest;
 import com.ram.portfolio.dto.PortfolioSummaryResponse;
+import com.ram.portfolio.dto.StockPageResponse;
 import com.ram.portfolio.dto.StockResponse;
 import com.ram.portfolio.dto.UpdateStockPriceRequest;
 import com.ram.portfolio.entity.Stock;
 import com.ram.portfolio.exception.StockNotFoundException;
 import com.ram.portfolio.repository.StockRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Service
 @Transactional
@@ -24,32 +26,26 @@ public class StockService {
     }
 
     public StockResponse addStock(CreateStockRequest request) {
-        Stock stock = new Stock(
-                request.stockName().trim(),
-                request.buyPrice(),
-                request.quantity(),
-                request.currentPrice()
-        );
+        Stock stock = new Stock(request.stockName().trim(), request.buyPrice(), request.quantity(), request.currentPrice());
         return StockResponse.from(repository.save(stock));
     }
 
     @Transactional(readOnly = true)
-    public List<StockResponse> getAllStocks() {
-        return repository.findAll().stream().map(StockResponse::from).toList();
+    public StockPageResponse getStocks(String query, Pageable pageable) {
+        Page<Stock> stocks = query == null || query.isBlank()
+                ? repository.findAll(pageable)
+                : repository.findByStockNameContainingIgnoreCase(query.trim(), pageable);
+        return StockPageResponse.from(stocks.map(StockResponse::from));
     }
 
     @Transactional(readOnly = true)
     public BigDecimal getTotalPortfolioValue() {
-        return repository.findAll().stream()
-                .map(stock -> stock.getCurrentPrice().multiply(BigDecimal.valueOf(stock.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return repository.calculateCurrentPortfolioValue();
     }
 
     @Transactional(readOnly = true)
     public BigDecimal getTotalInvestedValue() {
-        return repository.findAll().stream()
-                .map(stock -> stock.getBuyPrice().multiply(BigDecimal.valueOf(stock.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return repository.calculateInvestedPortfolioValue();
     }
 
     @Transactional(readOnly = true)
