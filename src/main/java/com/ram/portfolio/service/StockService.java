@@ -6,10 +6,13 @@ import com.ram.portfolio.dto.StockPageResponse;
 import com.ram.portfolio.dto.StockResponse;
 import com.ram.portfolio.dto.UpdateStockPriceRequest;
 import com.ram.portfolio.entity.Stock;
+import com.ram.portfolio.exception.StockConflictException;
 import com.ram.portfolio.exception.StockNotFoundException;
 import com.ram.portfolio.repository.StockRepository;
+import jakarta.persistence.OptimisticLockException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,7 +60,15 @@ public class StockService {
 
     public StockResponse updateStockPrice(Long id, UpdateStockPriceRequest request) {
         Stock stock = repository.findById(id).orElseThrow(() -> new StockNotFoundException(id));
+        if (!stock.getVersion().equals(request.version())) {
+            throw new StockConflictException(id);
+        }
+
         stock.setCurrentPrice(request.currentPrice());
-        return StockResponse.from(repository.save(stock));
+        try {
+            return StockResponse.from(repository.saveAndFlush(stock));
+        } catch (OptimisticLockException | ObjectOptimisticLockingFailureException ex) {
+            throw new StockConflictException(id);
+        }
     }
 }
