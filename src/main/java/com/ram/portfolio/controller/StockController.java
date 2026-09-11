@@ -3,6 +3,7 @@ package com.ram.portfolio.controller;
 import com.ram.portfolio.dto.CreateStockRequest;
 import com.ram.portfolio.dto.PortfolioSummaryResponse;
 import com.ram.portfolio.dto.StockPageResponse;
+import com.ram.portfolio.dto.StockResponse;
 import com.ram.portfolio.dto.UpdateStockPriceRequest;
 import com.ram.portfolio.service.StockService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,7 +37,7 @@ public class StockController {
 
     @PostMapping
     @Operation(summary = "Add a stock holding")
-    public ResponseEntity<?> addStock(@Valid @RequestBody CreateStockRequest request) {
+    public ResponseEntity<StockResponse> addStock(@Valid @RequestBody CreateStockRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addStock(request));
     }
 
@@ -65,7 +66,9 @@ public class StockController {
 
     @PutMapping("/{id}/price")
     @Operation(summary = "Update the market price of a holding")
-    public Object updateStockPrice(@PathVariable Long id, @Valid @RequestBody UpdateStockPriceRequest request) {
+    public StockResponse updateStockPrice(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateStockPriceRequest request) {
         return service.updateStockPrice(id, request);
     }
 }
