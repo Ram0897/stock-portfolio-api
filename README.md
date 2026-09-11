@@ -4,19 +4,22 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Build](https://github.com/Ram0897/stock-portfolio-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Ram0897/stock-portfolio-api/actions/workflows/ci.yml)
 
-A backend REST API for managing an investment portfolio, built with **Java 17, Spring Boot, Spring Data JPA and H2**.
+A production-style REST API for managing stock portfolio holdings, built with **Java 17, Spring Boot, Spring Data JPA and PostgreSQL**.
 
-The project demonstrates layered backend design, RESTful API development, persistence, portfolio calculations, validation opportunities and automated CI.
+The project focuses on backend engineering fundamentals: layered architecture, DTO boundaries, validation, precise monetary calculations, centralized exception handling, database migrations, containerization and automated testing.
 
-## What it does
+## Features
 
-- Add stocks to a portfolio
-- Retrieve portfolio holdings
-- Update the current market price of a holding
-- Calculate total invested value
-- Calculate current portfolio value
-- Calculate total profit/loss
-- Persist portfolio data using H2
+- Create stock holdings with request validation
+- Retrieve portfolio holdings through response DTOs
+- Update market prices with proper `PUT` semantics
+- Calculate invested value, current value and profit/loss
+- Use `BigDecimal` for monetary calculations
+- Centralized API error handling
+- PostgreSQL persistence with Flyway migrations
+- Docker Compose setup for API + PostgreSQL
+- Unit tests for core portfolio behavior
+- GitHub Actions CI
 
 ## Architecture
 
@@ -27,13 +30,16 @@ Client
 REST Controller
   |
   v
+Request/Response DTOs
+  |
+  v
 Service Layer
   |
   v
 Spring Data JPA Repository
   |
   v
-H2 Database
+PostgreSQL
 ```
 
 ## Tech Stack
@@ -42,16 +48,19 @@ H2 Database
 - **Spring Boot 4**
 - **Spring Web MVC**
 - **Spring Data JPA / Hibernate**
-- **H2 Database**
+- **PostgreSQL**
+- **Flyway**
+- **Bean Validation**
 - **Maven**
-- **JUnit / Spring Boot Test**
+- **JUnit 5 / Mockito / AssertJ**
+- **Docker / Docker Compose**
 - **GitHub Actions**
 
 ## API
 
 Base URL: `http://localhost:8080/api/stocks`
 
-### Add a stock
+### Create a stock
 
 `POST /api/stocks`
 
@@ -76,28 +85,53 @@ Base URL: `http://localhost:8080/api/stocks`
 
 `GET /api/stocks/summary`
 
-Example response:
-
 ```json
 {
-  "investedValue": 35000.0,
-  "currentValue": 36000.0,
-  "profit": 1000.0
+  "investedValue": 35000.00,
+  "currentValue": 36000.00,
+  "profit": 1000.00
 }
 ```
 
 ### Update market price
 
-`PUT /api/stocks/{id}/price?value=3650.00`
+`PUT /api/stocks/{id}/price`
 
-## Run locally
+```json
+{
+  "currentPrice": 3650.00
+}
+```
 
-### Prerequisites
+Invalid requests return a consistent JSON error payload instead of exposing internal exceptions.
 
-- JDK 17+
-- Maven Wrapper (included in the repository)
+## Run with Docker
 
-### Start the application
+Prerequisite: Docker Desktop or Docker Engine with Compose.
+
+```bash
+docker compose up --build
+```
+
+The API starts on `http://localhost:8080` and PostgreSQL is available on port `5432`.
+
+Stop the stack with:
+
+```bash
+docker compose down
+```
+
+## Run locally without Docker
+
+Set these environment variables for your local PostgreSQL instance:
+
+```text
+DB_URL=jdbc:postgresql://localhost:5432/portfolio
+DB_USERNAME=portfolio
+DB_PASSWORD=portfolio
+```
+
+Then run:
 
 ```bash
 ./mvnw spring-boot:run
@@ -109,58 +143,48 @@ On Windows:
 mvnw.cmd spring-boot:run
 ```
 
-### Run tests
+## Tests
+
+Run the test suite with:
 
 ```bash
 ./mvnw test
 ```
 
-## Database
+GitHub Actions runs the test suite automatically for pull requests and pushes to `main`.
 
-The default local configuration uses a file-backed H2 database at `./data/portfolio-db` so portfolio data can survive application restarts.
-
-The H2 console is available locally at:
-
-`http://localhost:8080/h2-console`
-
-> The H2 console is intended for local development only and should not be exposed in a production deployment.
-
-## Engineering roadmap
-
-This repository is intentionally being evolved toward production-style backend engineering. Planned improvements include:
-
-- PostgreSQL support
-- Request/response DTOs and Bean Validation
-- Global exception handling with consistent API errors
-- Unit and integration test coverage
-- Testcontainers
-- Database migrations with Flyway
-- Docker and Docker Compose
-- OpenAPI / Swagger documentation
-- Authentication and authorization
-- Redis caching
-- Observability and structured logging
-
-## Project structure
+## Project Structure
 
 ```text
-src/
-├── main/
-│   ├── java/com/example/demo/
-│   │   ├── Stock.java
-│   │   ├── StockController.java
-│   │   ├── StockRepository.java
-│   │   ├── StockService.java
-│   │   └── StockPortfolioApplication.java
-│   └── resources/
-│       └── application.properties
-└── test/
-    └── java/com/example/demo/
+src/main/java/com/ram/portfolio/
+├── controller/
+├── dto/
+├── entity/
+├── exception/
+├── repository/
+├── service/
+└── StockPortfolioApplication.java
+
+src/main/resources/
+├── db/migration/
+└── application.properties
 ```
+
+## Engineering Roadmap
+
+Next improvements planned for the portfolio:
+
+- Integration tests with Testcontainers
+- OpenAPI / Swagger documentation
+- Pagination and filtering
+- Authentication and authorization
+- Database query optimization for portfolio aggregates
+- Structured logging and observability
+- Production deployment and infrastructure automation
 
 ## Why this project?
 
-The project is a practical backend exercise focused on the core engineering concepts used in production APIs: separation of concerns, persistence, business logic, HTTP semantics, testing and continuous integration.
+This repository is being evolved from a basic CRUD exercise into a portfolio-quality backend that demonstrates practical engineering decisions and trade-offs rather than only framework usage.
 
 ## License
 
