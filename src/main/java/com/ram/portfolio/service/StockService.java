@@ -11,6 +11,8 @@ import com.ram.portfolio.exception.StockConflictException;
 import com.ram.portfolio.exception.StockNotFoundException;
 import com.ram.portfolio.repository.StockRepository;
 import jakarta.persistence.OptimisticLockException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -23,6 +25,8 @@ import java.math.BigDecimal;
 @Transactional
 public class StockService {
 
+    private static final Logger log = LoggerFactory.getLogger(StockService.class);
+
     private final StockRepository repository;
 
     public StockService(StockRepository repository) {
@@ -31,7 +35,9 @@ public class StockService {
 
     public StockResponse addStock(CreateStockRequest request) {
         Stock stock = new Stock(request.stockName().trim(), request.buyPrice(), request.quantity(), request.currentPrice());
-        return StockResponse.from(repository.save(stock));
+        StockResponse response = StockResponse.from(repository.save(stock));
+        log.info("Stock added: id={}, symbol={}, quantity={}", response.id(), response.stockName(), response.quantity());
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -63,28 +69,41 @@ public class StockService {
         Stock stock = repository.findById(id).orElseThrow(() -> new StockNotFoundException(id));
         verifyVersion(stock, request.version());
         stock.setCurrentPrice(request.currentPrice());
-        return saveWithConflictHandling(stock, id);
+        StockResponse response = saveWithConflictHandling(stock, id);
+        log.info("Stock price updated: id={}, version={}", response.id(), response.version());
+        return response;
     }
 
     public StockResponse buy(Long id, TradeStockRequest request) {
         Stock stock = repository.findById(id).orElseThrow(() -> new StockNotFoundException(id));
-        stock.setQuantity(Math.addExact(stock.getQuantity(), request.quantity()));
+        int previousQuantity = stock.getQuantity();
+        stock.setQuantity(Math.addExact(previousQuantity, request.quantity()));
         stock.setCurrentPrice(request.price());
-        return StockResponse.from(repository.save(stock));
+        StockResponse response = StockResponse.from(repository.save(stock));
+        log.info("Stock purchase completed: id={}, quantityAdded={}, quantityTotal={}",
+                id, request.quantity(), response.quantity());
+        return response;
     }
 
     public StockResponse sell(Long id, TradeStockRequest request) {
         Stock stock = repository.findById(id).orElseThrow(() -> new StockNotFoundException(id));
         if (request.quantity() > stock.getQuantity()) {
+            log.warn("Stock sale rejected: id={}, requestedQuantity={}, heldQuantity={}",
+                    id, request.quantity(), stock.getQuantity());
             throw new IllegalArgumentException("Cannot sell more shares than currently held");
         }
         stock.setQuantity(stock.getQuantity() - request.quantity());
         stock.setCurrentPrice(request.price());
-        return StockResponse.from(repository.save(stock));
+        StockResponse response = StockResponse.from(repository.save(stock));
+        log.info("Stock sale completed: id={}, quantitySold={}, quantityRemaining={}",
+                id, request.quantity(), response.quantity());
+        return response;
     }
 
     private void verifyVersion(Stock stock, Long expectedVersion) {
         if (!stock.getVersion().equals(expectedVersion)) {
+            log.warn("Stale stock update rejected: id={}, expectedVersion={}, actualVersion={}",
+                    stock.getId(), expectedVersion, stock.getVersion());
             throw new StockConflictException(stock.getId());
         }
     }
@@ -93,6 +112,7 @@ public class StockService {
         try {
             return StockResponse.from(repository.saveAndFlush(stock));
         } catch (OptimisticLockException | ObjectOptimisticLockingFailureException ex) {
+            log.warn("Optimistic locking conflict: id={}", id);
             throw new StockConflictException(id);
         }
     }
