@@ -4,7 +4,7 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![CI](https://github.com/Ram0897/stock-portfolio-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Ram0897/stock-portfolio-api/actions/workflows/ci.yml)
 
-A production-oriented REST API for managing stock portfolio holdings. Built to demonstrate backend engineering practices beyond basic CRUD: layered architecture, JWT authentication, validation, consistent errors, PostgreSQL, Flyway, pagination, database-side aggregation, OpenAPI documentation, Docker and automated tests.
+A production-oriented REST API for managing stock portfolio holdings. Built to demonstrate backend engineering practices beyond basic CRUD: layered architecture, JWT authentication, validation, consistent errors, optimistic locking, PostgreSQL, Flyway, pagination, database-side aggregation, OpenAPI documentation, Docker and automated tests.
 
 ## Architecture
 
@@ -18,7 +18,7 @@ JWT Authentication Filter
 REST Controller + Validation + OpenAPI
   |
   v
-Service Layer
+Service Layer + Transaction Boundaries
   |
   v
 Spring Data JPA Repository
@@ -78,6 +78,21 @@ Authorization: Bearer <jwt>
 
 For real deployments, replace the demo in-memory identity store with persistent users, refresh-token rotation and a dedicated identity provider or hardened credential-management flow.
 
+## Concurrency Control
+
+Stock price updates use JPA optimistic locking with a persisted `version` field. Clients receive the current version with each stock response and must send that version when updating the price.
+
+Example update:
+
+```json
+{
+  "currentPrice": 3650.00,
+  "version": 0
+}
+```
+
+If another request has already modified the same stock, the API returns **409 Conflict** instead of silently overwriting the newer value.
+
 ## API
 
 Base URL: `http://localhost:8080/api/stocks`
@@ -127,7 +142,8 @@ The API limits page size to 100 and sorts holdings by stock name.
 
 ```json
 {
-  "currentPrice": 3650.00
+  "currentPrice": 3650.00,
+  "version": 0
 }
 ```
 
@@ -196,11 +212,12 @@ Use strong, unique secrets in any shared or production environment. Database sch
 ## Engineering Highlights
 
 - **Authentication:** stateless JWT bearer authentication with BCrypt-protected in-memory credentials.
+- **Concurrency safety:** optimistic locking prevents lost updates during concurrent price changes and maps conflicts to HTTP 409.
 - **Money-safe calculations:** `BigDecimal` instead of floating-point `Double` for monetary values.
 - **Separation of concerns:** controllers handle HTTP, services handle business logic, repositories handle persistence.
 - **API contracts:** JPA entities are not exposed directly; request/response DTOs define the API surface.
 - **Validation:** invalid prices, quantities and blank stock names are rejected at the API boundary.
-- **Consistent errors:** global exception handling returns structured API errors.
+- **Consistent errors:** global exception handling returns structured API errors without leaking internal exception details.
 - **Scalability basics:** holdings support pagination/search and portfolio totals use database aggregation instead of loading every row into application memory.
 - **Database reliability:** PostgreSQL plus versioned Flyway migrations.
 - **Test strategy:** unit tests for business logic plus a PostgreSQL integration test using Testcontainers.
@@ -225,7 +242,6 @@ src/main/java/com/ram/portfolio
 
 - Persistent users and refresh-token rotation
 - Role-based authorization
-- Optimistic locking for concurrent price updates
 - Transactional portfolio/order workflows
 - Redis caching where profiling justifies it
 - Structured logging and observability
