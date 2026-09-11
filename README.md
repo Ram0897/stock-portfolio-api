@@ -4,12 +4,15 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![CI](https://github.com/Ram0897/stock-portfolio-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Ram0897/stock-portfolio-api/actions/workflows/ci.yml)
 
-A production-oriented REST API for managing stock portfolio holdings. Built to demonstrate backend engineering practices beyond basic CRUD: layered architecture, validation, consistent errors, PostgreSQL, Flyway, pagination, database-side aggregation, OpenAPI documentation, Docker and automated tests.
+A production-oriented REST API for managing stock portfolio holdings. Built to demonstrate backend engineering practices beyond basic CRUD: layered architecture, JWT authentication, validation, consistent errors, PostgreSQL, Flyway, pagination, database-side aggregation, OpenAPI documentation, Docker and automated tests.
 
 ## Architecture
 
 ```text
 Client
+  |
+  v
+JWT Authentication Filter
   |
   v
 REST Controller + Validation + OpenAPI
@@ -29,6 +32,8 @@ PostgreSQL <--- Flyway migrations
 - Java 17
 - Spring Boot 4
 - Spring Web MVC
+- Spring Security
+- JWT (JJWT)
 - Spring Data JPA / Hibernate
 - PostgreSQL
 - Flyway
@@ -39,6 +44,39 @@ PostgreSQL <--- Flyway migrations
 - Maven
 - Docker / Docker Compose
 - GitHub Actions
+
+## Authentication
+
+The portfolio endpoints require a valid JWT bearer token. Login is intentionally kept simple for this portfolio project: credentials are supplied through environment variables and the authenticated user is held in memory.
+
+### Login
+
+`POST /api/auth/login`
+
+```json
+{
+  "username": "portfolio-user",
+  "password": "change-me"
+}
+```
+
+Response:
+
+```json
+{
+  "token": "<jwt>",
+  "tokenType": "Bearer",
+  "expiresInSeconds": 3600
+}
+```
+
+Send the token on protected requests:
+
+```text
+Authorization: Bearer <jwt>
+```
+
+For real deployments, replace the demo in-memory identity store with persistent users, refresh-token rotation and a dedicated identity provider or hardened credential-management flow.
 
 ## API
 
@@ -103,6 +141,8 @@ OpenAPI JSON:
 
 `http://localhost:8080/v3/api-docs`
 
+Authentication is required for stock endpoints; `/api/auth/login` and the OpenAPI documentation endpoints remain public.
+
 ## Run with Docker
 
 ```bash
@@ -142,10 +182,20 @@ DB_USERNAME=portfolio
 DB_PASSWORD=portfolio
 ```
 
-Database schema changes are managed by Flyway under `src/main/resources/db/migration`.
+Authentication configuration:
+
+```text
+AUTH_USERNAME=portfolio-user
+AUTH_PASSWORD=change-me
+JWT_SECRET=change-this-development-secret-key-32-bytes-min
+JWT_EXPIRATION_SECONDS=3600
+```
+
+Use strong, unique secrets in any shared or production environment. Database schema changes are managed by Flyway under `src/main/resources/db/migration`.
 
 ## Engineering Highlights
 
+- **Authentication:** stateless JWT bearer authentication with BCrypt-protected in-memory credentials.
 - **Money-safe calculations:** `BigDecimal` instead of floating-point `Double` for monetary values.
 - **Separation of concerns:** controllers handle HTTP, services handle business logic, repositories handle persistence.
 - **API contracts:** JPA entities are not exposed directly; request/response DTOs define the API surface.
@@ -160,6 +210,8 @@ Database schema changes are managed by Flyway under `src/main/resources/db/migra
 
 ```text
 src/main/java/com/ram/portfolio
+├── auth
+├── config
 ├── controller
 ├── dto
 ├── entity
@@ -171,7 +223,8 @@ src/main/java/com/ram/portfolio
 
 ## Roadmap
 
-- Authentication and authorization
+- Persistent users and refresh-token rotation
+- Role-based authorization
 - Optimistic locking for concurrent price updates
 - Transactional portfolio/order workflows
 - Redis caching where profiling justifies it
