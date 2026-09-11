@@ -4,7 +4,7 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![CI](https://github.com/Ram0897/stock-portfolio-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Ram0897/stock-portfolio-api/actions/workflows/ci.yml)
 
-A production-oriented REST API for managing stock portfolio holdings. Built to demonstrate backend engineering practices beyond basic CRUD: layered architecture, JWT authentication, validation, consistent errors, optimistic locking, PostgreSQL, Flyway, pagination, database-side aggregation, OpenAPI documentation, Docker and automated tests.
+A production-oriented REST API for managing stock portfolio holdings. Built to demonstrate backend engineering practices beyond basic CRUD: layered architecture, JWT authentication, validation, consistent errors, optimistic locking, PostgreSQL, Flyway, pagination, database-side aggregation, transactional buy/sell workflows, structured logging, OpenAPI documentation, Docker and automated tests.
 
 ## Architecture
 
@@ -18,7 +18,7 @@ JWT Authentication Filter
 REST Controller + Validation + OpenAPI
   |
   v
-Service Layer + Transaction Boundaries
+Service Layer + Transaction Boundaries + Logging
   |
   v
 Spring Data JPA Repository
@@ -93,6 +93,24 @@ Example update:
 
 If another request has already modified the same stock, the API returns **409 Conflict** instead of silently overwriting the newer value.
 
+## Trading Workflows
+
+Holdings support transactional buy and sell operations:
+
+- `POST /api/stocks/{id}/buy` increases the holding quantity and updates the market price.
+- `POST /api/stocks/{id}/sell` decreases the holding quantity and rejects sales above the currently held quantity.
+- Trade operations execute inside the service transaction boundary.
+- Business events are logged with SLF4J without logging credentials or JWT secrets.
+
+Example trade request:
+
+```json
+{
+  "quantity": 5,
+  "price": 3650.00
+}
+```
+
 ## API
 
 Base URL: `http://localhost:8080/api/stocks`
@@ -146,6 +164,14 @@ The API limits page size to 100 and sorts holdings by stock name.
   "version": 0
 }
 ```
+
+### Buy shares
+
+`POST /api/stocks/{id}/buy`
+
+### Sell shares
+
+`POST /api/stocks/{id}/sell`
 
 ## API Documentation
 
@@ -218,6 +244,8 @@ Use strong, unique secrets in any shared or production environment. Database sch
 - **API contracts:** JPA entities are not exposed directly; request/response DTOs define the API surface.
 - **Validation:** invalid prices, quantities and blank stock names are rejected at the API boundary.
 - **Consistent errors:** global exception handling returns structured API errors without leaking internal exception details.
+- **Transactional workflows:** buy/sell operations enforce business rules inside service-level transactions.
+- **Observability basics:** structured SLF4J logs capture important business events and concurrency conflicts without sensitive values.
 - **Scalability basics:** holdings support pagination/search and portfolio totals use database aggregation instead of loading every row into application memory.
 - **Database reliability:** PostgreSQL plus versioned Flyway migrations.
 - **Test strategy:** unit tests for business logic plus a PostgreSQL integration test using Testcontainers.
@@ -242,9 +270,9 @@ src/main/java/com/ram/portfolio
 
 - Persistent users and refresh-token rotation
 - Role-based authorization
-- Transactional portfolio/order workflows
+- Trade/order history with a dedicated transaction model
 - Redis caching where profiling justifies it
-- Structured logging and observability
+- Correlation IDs and centralized observability
 - Contract/integration testing for external market-data providers
 
 ## License
