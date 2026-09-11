@@ -18,7 +18,7 @@ public class Stock {
     private Long id;
 
     @Version
-    private Long version;
+    private Long version = 0L;
 
     private String stockName;
     private BigDecimal buyPrice;
