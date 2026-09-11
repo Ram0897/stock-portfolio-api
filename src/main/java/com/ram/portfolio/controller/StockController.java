@@ -4,6 +4,7 @@ import com.ram.portfolio.dto.CreateStockRequest;
 import com.ram.portfolio.dto.PortfolioSummaryResponse;
 import com.ram.portfolio.dto.StockPageResponse;
 import com.ram.portfolio.dto.StockResponse;
+import com.ram.portfolio.dto.TradeStockRequest;
 import com.ram.portfolio.dto.UpdateStockPriceRequest;
 import com.ram.portfolio.service.StockService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -70,5 +71,17 @@ public class StockController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateStockPriceRequest request) {
         return service.updateStockPrice(id, request);
+    }
+
+    @PostMapping("/{id}/buy")
+    @Operation(summary = "Buy additional shares")
+    public StockResponse buy(@PathVariable Long id, @Valid @RequestBody TradeStockRequest request) {
+        return service.buy(id, request);
+    }
+
+    @PostMapping("/{id}/sell")
+    @Operation(summary = "Sell shares from a holding")
+    public StockResponse sell(@PathVariable Long id, @Valid @RequestBody TradeStockRequest request) {
+        return service.sell(id, request);
     }
 }
