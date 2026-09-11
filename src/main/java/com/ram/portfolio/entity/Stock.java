@@ -5,6 +5,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+
 import java.math.BigDecimal;
 
 @Entity
@@ -14,6 +16,9 @@ public class Stock {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Version
+    private Long version;
 
     private String stockName;
     private BigDecimal buyPrice;
@@ -31,6 +36,7 @@ public class Stock {
     }
 
     public Long getId() { return id; }
+    public Long getVersion() { return version; }
     public String getStockName() { return stockName; }
     public BigDecimal getBuyPrice() { return buyPrice; }
     public Integer getQuantity() { return quantity; }
